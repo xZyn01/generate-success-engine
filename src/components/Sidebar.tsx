@@ -94,12 +94,21 @@ const SidebarItemComponent = ({ item, level = 0 }: SidebarItemProps) => {
   );
 };
 
-export const Sidebar = () => {
+interface SidebarProps {
+  onOpenVault: () => void;
+}
+
+export const Sidebar = ({ onOpenVault }: SidebarProps) => {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <Settings className="w-5 h-5 text-muted-foreground hover:text-foreground cursor-pointer transition-colors" />
-        <SortAsc className="w-5 h-5 text-muted-foreground hover:text-foreground cursor-pointer transition-colors" />
+        <button onClick={onOpenVault} className="text-xs px-2 py-1 rounded bg-primary/10 hover:bg-primary/20 transition-colors">
+          Open Vault
+        </button>
+        <div className="flex gap-2">
+          <Settings className="w-5 h-5 text-muted-foreground hover:text-foreground cursor-pointer transition-colors" />
+          <SortAsc className="w-5 h-5 text-muted-foreground hover:text-foreground cursor-pointer transition-colors" />
+        </div>
       </div>
       <nav className="sidebar-nav">
         {sidebarData.map((item) => (

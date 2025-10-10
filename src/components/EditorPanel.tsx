@@ -1,46 +1,46 @@
-import { Hash, Bold, Italic, Strikethrough, Link2, List, ListOrdered, CheckSquare, Code, Smile, Code2, Minus, Image } from "lucide-react";
+import { Hash, Bold, Italic, Strikethrough, Link2, List, ListOrdered, CheckSquare, Code, Smile, Code2, Minus, Image, Save } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Note } from "@/hooks/useFileSystem";
+import { Button } from "./ui/button";
 
-export const EditorPanel = () => {
-  const [content, setContent] = useState(`### Migration
+interface EditorPanelProps {
+  note: Note | null;
+  onSave: (content: string) => void;
+}
 
-Specify the absolute path
+export const EditorPanel = ({ note, onSave }: EditorPanelProps) => {
+  const [content, setContent] = useState("");
 
-- [op-sqlite Configuration](https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090#38a5b477bbc543f2ae3c75d5b5365226)
+  useEffect(() => {
+    if (note) {
+      setContent(note.content);
+    }
+  }, [note]);
 
-\`\`\`typescript
-import {
-  IOS_LIBRARY_PATH, // Default iOS
-  IOS_DOCUMENT_PATH,
-  ANDROID_DATABASE_PATH, // Default Android
-  ANDROID_FILES_PATH,
-  ANDROID_EXTERNAL_FILES_PATH, // Android SD Card
-  open,
-} from '@op-engineering/op-sqlite';
+  const handleSave = () => {
+    if (note) {
+      onSave(content);
+    }
+  };
 
-const db = open({
-  name: 'myDb',
-  location: Platform.OS === 'ios' ? IOS_LIBRARY_PATH :
-    ANDROID_DATABASE_PATH,
-});
-\`\`\``);
+  if (!note) {
+    return (
+      <div className="editor-panel flex items-center justify-center">
+        <p className="text-muted-foreground">Select a note to start editing or create a new one</p>
+      </div>
+    );
+  }
 
   return (
     <div className="editor-panel">
       <div className="editor-header">
-        <h1 className="text-xl font-semibold mb-4">Create a new PouchDB adapter for op-sqlite</h1>
-        <div className="flex items-center gap-2 mb-4">
-          <input type="checkbox" className="checkbox" />
-          <select className="editor-select">
-            <option>Awesome SaaS : Mobile app</option>
-          </select>
-          <select className="editor-select">
-            <option>Status</option>
-          </select>
-          <span className="editor-tag">React Native</span>
-          <span className="editor-tag accent">Database</span>
-          <button className="text-sm text-muted-foreground hover:text-foreground">Add Tags</button>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-semibold">{note.name.replace('.md', '')}</h1>
+          <Button onClick={handleSave} size="sm" className="gap-2">
+            <Save className="w-4 h-4" />
+            Save
+          </Button>
         </div>
         <div className="editor-toolbar">
           <Hash className="w-4 h-4" />
@@ -62,7 +62,7 @@ const db = open({
         <Textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          className="min-h-[calc(100vh-16rem)] font-mono text-sm bg-editor-background border-0 focus-visible:ring-0 resize-none"
+          className="min-h-[calc(100vh-14rem)] font-mono text-sm bg-editor-background border-0 focus-visible:ring-0 resize-none"
           placeholder="Start writing your markdown note..."
         />
       </div>

@@ -1,118 +1,96 @@
-import { Search, Edit3, CheckCircle2, Circle, Flag } from "lucide-react";
+import { Search, Edit3, Plus, RefreshCw } from "lucide-react";
 import { Input } from "./ui/input";
+import { Note } from "@/hooks/useFileSystem";
+import { Button } from "./ui/button";
+import { useState } from "react";
 
-interface Note {
-  id: string;
-  title: string;
-  preview: string;
-  timestamp: string;
-  tags?: string[];
-  progress?: { current: number; total: number };
-  isPinned?: boolean;
-  icon?: React.ReactNode;
+interface NotesListProps {
+  notes: Note[];
+  isLoading: boolean;
+  selectedNote: Note | null;
+  onSelectNote: (note: Note) => void;
+  onCreateNote: (fileName: string) => void;
+  onRefresh: () => void;
 }
 
-const notes: Note[] = [
-  {
-    id: "1",
-    title: "Record a webpage with background transparency using Puppeteer",
-    preview: "[Support for transparent video background. (Differ...",
-    timestamp: "31 minutes",
-  },
-  {
-    id: "2",
-    title: "Migrate ESLint YAML config to flat mjs config",
-    preview: "Working on updating this repo: [GitHub - inkdropa...",
-    timestamp: "31 minutes",
-  },
-  {
-    id: "3",
-    title: "Fluid animations with threejs",
-    preview: "[Rain & Water Effect Experiments | Codrops]( http...",
-    timestamp: "31 minutes",
-  },
-  {
-    id: "4",
-    title: "Create a new PouchDB adapter for op-sqlite",
-    preview: "old repo: https://github.com/craftzdog/pouchdb-a...",
-    timestamp: "32 minutes",
-    tags: ["React Native", "Database"],
-    progress: { current: 2, total: 2 },
-  },
-  {
-    id: "5",
-    title: "Bump up deps of the web app",
-    preview: "Bump up stripe From 14 to 17.4.0 https://www.npm...",
-    timestamp: "33 minutes",
-    progress: { current: 5, total: 7 },
-  },
-  {
-    id: "6",
-    title: "Feature idea",
-    preview: "[Editor hold to select interests with gesture navig...",
-    timestamp: "36 minutes",
-    progress: { current: 2, total: 5 },
-    icon: <Circle className="w-4 h-4 text-primary" />,
-  },
-  {
-    id: "7",
-    title: "Mermaid diagrams",
-    preview: "graph LR A --- B B-->C[fa:fa-ban forbidden] B-->...",
-    timestamp: "11 days",
-  },
-  {
-    id: "8",
-    title: "Fix a bug",
-    preview: "",
-    timestamp: "",
-    icon: <Flag className="w-4 h-4 text-accent" />,
-  },
-];
+export const NotesList = ({ notes, isLoading, selectedNote, onSelectNote, onCreateNote, onRefresh }: NotesListProps) => {
+  const [searchQuery, setSearchQuery] = useState("");
 
-export const NotesList = () => {
+  const filteredNotes = notes.filter(note => 
+    note.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    note.content.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleCreateNote = () => {
+    const fileName = `note-${Date.now()}.md`;
+    onCreateNote(fileName);
+  };
+
+  const formatTimestamp = (timestamp: number) => {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return `${seconds} seconds ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} minutes ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hours ago`;
+    const days = Math.floor(hours / 24);
+    return `${days} days ago`;
+  };
+
+  const getPreview = (content: string) => {
+    return content.split('\n').find(line => line.trim() && !line.startsWith('#')) || '';
+  };
+
   return (
     <div className="notes-list">
       <div className="notes-header">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">All Notes</h2>
-          <Edit3 className="w-5 h-5 text-muted-foreground hover:text-foreground cursor-pointer transition-colors" />
+          <h2 className="text-xl font-semibold">All Notes ({notes.length})</h2>
+          <div className="flex gap-2">
+            <Button onClick={onRefresh} variant="ghost" size="icon">
+              <RefreshCw className="w-4 h-4" />
+            </Button>
+            <Button onClick={handleCreateNote} variant="ghost" size="icon">
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search" className="notes-search" />
+          <Input 
+            placeholder="Search notes..." 
+            className="notes-search" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
       </div>
       <div className="notes-items">
-        {notes.map((note) => (
-          <div key={note.id} className="note-item">
-            <div className="flex items-start gap-3">
-              {note.icon && <div className="mt-1">{note.icon}</div>}
-              <div className="flex-1 min-w-0">
-                <h3 className="note-title">{note.title}</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="note-timestamp">{note.timestamp}</span>
-                  {note.progress && (
-                    <div className="flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-green-500" />
-                      <span className="text-xs text-muted-foreground">
-                        {note.progress.current} of {note.progress.total}
-                      </span>
-                    </div>
-                  )}
-                  {note.tags?.map((tag) => (
-                    <span
-                      key={tag}
-                      className="note-tag"
-                    >
-                      {tag}
-                    </span>
-                  ))}
+        {isLoading ? (
+          <div className="p-4 text-center text-muted-foreground">Loading notes...</div>
+        ) : filteredNotes.length === 0 ? (
+          <div className="p-4 text-center text-muted-foreground">
+            {notes.length === 0 ? 'No notes found. Open a vault to get started.' : 'No matching notes.'}
+          </div>
+        ) : (
+          filteredNotes.map((note) => (
+            <div 
+              key={note.name} 
+              className={`note-item cursor-pointer ${selectedNote?.name === note.name ? 'bg-primary/10' : ''}`}
+              onClick={() => onSelectNote(note)}
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="note-title">{note.name.replace('.md', '')}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="note-timestamp">{formatTimestamp(note.lastModified)}</span>
+                  </div>
+                  <p className="note-preview">{getPreview(note.content).substring(0, 80)}...</p>
                 </div>
-                {note.preview && <p className="note-preview">{note.preview}</p>}
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
