@@ -57,6 +57,17 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        editor: {
+          background: "hsl(var(--editor-background))",
+          "line-number": "hsl(var(--editor-line-number))",
+        },
+        code: {
+          keyword: "hsl(var(--code-keyword))",
+          string: "hsl(var(--code-string))",
+          comment: "hsl(var(--code-comment))",
+          function: "hsl(var(--code-function))",
+          variable: "hsl(var(--code-variable))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
