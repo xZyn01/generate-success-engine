@@ -11,15 +11,25 @@ interface NotesListProps {
   onSelectNote: (note: Note) => void;
   onCreateNote: (fileName: string) => void;
   onRefresh: () => void;
+  selectedFolder: string | null;
 }
 
-export const NotesList = ({ notes, isLoading, selectedNote, onSelectNote, onCreateNote, onRefresh }: NotesListProps) => {
+export const NotesList = ({ notes, isLoading, selectedNote, onSelectNote, onCreateNote, onRefresh, selectedFolder }: NotesListProps) => {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredNotes = notes.filter(note => 
-    note.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    note.content.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredNotes = notes.filter(note => {
+    const matchesSearch = note.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      note.content.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (selectedFolder === null) {
+      return matchesSearch;
+    }
+    
+    const folderPath = selectedFolder + '/';
+    const matchesFolder = note.path.startsWith(folderPath) || note.path === selectedFolder;
+    
+    return matchesSearch && matchesFolder;
+  });
 
   const handleCreateNote = () => {
     const fileName = `note-${Date.now()}.md`;
@@ -45,7 +55,9 @@ export const NotesList = ({ notes, isLoading, selectedNote, onSelectNote, onCrea
     <div className="notes-list">
       <div className="notes-header">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">All Notes ({notes.length})</h2>
+          <h2 className="text-xl font-semibold">
+            {selectedFolder ? selectedFolder.split('/').pop() : 'All Notes'} ({filteredNotes.length})
+          </h2>
           <div className="flex gap-2">
             <Button onClick={onRefresh} variant="ghost" size="icon">
               <RefreshCw className="w-4 h-4" />

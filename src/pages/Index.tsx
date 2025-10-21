@@ -7,6 +7,7 @@ import { useState } from "react";
 const Index = () => {
   const fileSystem = useFileSystem();
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
 
   return (
     <div className="app-container">
@@ -14,14 +15,18 @@ const Index = () => {
         onOpenVault={fileSystem.selectDirectory}
         folderStructure={fileSystem.folderStructure}
         vaultName={fileSystem.directoryHandle?.name}
+        onSelectFolder={setSelectedFolder}
+        selectedFolder={selectedFolder}
+        totalNotes={fileSystem.notes.length}
       />
-      <NotesList
+      <NotesList 
         notes={fileSystem.notes}
         isLoading={fileSystem.isLoading}
         selectedNote={selectedNote}
         onSelectNote={setSelectedNote}
         onCreateNote={fileSystem.createNote}
         onRefresh={fileSystem.refreshNotes}
+        selectedFolder={selectedFolder}
       />
       <EditorPanel 
         note={selectedNote}

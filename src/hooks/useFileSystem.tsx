@@ -6,6 +6,7 @@ export interface Note {
   handle: FileSystemFileHandle;
   content: string;
   lastModified: number;
+  path: string;
 }
 
 export interface FolderItem {
@@ -70,7 +71,7 @@ export const useFileSystem = () => {
       if (entry.kind === 'directory') {
         const subDirHandle = await dirHandle.getDirectoryHandle(entry.name);
         const children = await loadFolderStructure(subDirHandle, itemPath);
-        const noteCount = countNotes(children);
+        const noteCount = countNotesInFolder(children);
         
         items.push({
           id: itemPath,
@@ -80,58 +81,73 @@ export const useFileSystem = () => {
           children,
           noteCount,
         });
-      } else if (entry.kind === 'file' && entry.name.endsWith('.md')) {
-        items.push({
-          id: itemPath,
-          name: entry.name,
-          path: itemPath,
-          type: 'file',
-        });
       }
     }
 
-    return items.sort((a, b) => {
-      if (a.type === 'folder' && b.type === 'file') return -1;
-      if (a.type === 'file' && b.type === 'folder') return 1;
-      return a.name.localeCompare(b.name);
-    });
+    return items.sort((a, b) => a.name.localeCompare(b.name));
   }, []);
 
-  const countNotes = (items: FolderItem[]): number => {
+  const countNotesInFolder = (items: FolderItem[]): number => {
     return items.reduce((count, item) => {
-      if (item.type === 'file') return count + 1;
       if (item.type === 'folder' && item.children) {
-        return count + countNotes(item.children);
+        return count + (item.noteCount || 0);
       }
       return count;
     }, 0);
   };
 
+  const loadNotesRecursively = async (
+    dirHandle: FileSystemDirectoryHandle,
+    path: string = '',
+    loadedNotes: Note[] = []
+  ): Promise<Note[]> => {
+    for await (const entry of (dirHandle as any).values()) {
+      const itemPath = path ? `${path}/${entry.name}` : entry.name;
+      
+      if (entry.kind === 'file' && entry.name.endsWith('.md')) {
+        const file = await entry.getFile();
+        const content = await file.text();
+        
+        loadedNotes.push({
+          name: entry.name,
+          handle: entry,
+          content,
+          lastModified: file.lastModified,
+          path: itemPath,
+        });
+      } else if (entry.kind === 'directory') {
+        const subDirHandle = await dirHandle.getDirectoryHandle(entry.name);
+        await loadNotesRecursively(subDirHandle, itemPath, loadedNotes);
+      }
+    }
+    
+    return loadedNotes;
+  };
+
   const loadNotes = useCallback(async (dirHandle: FileSystemDirectoryHandle) => {
     setIsLoading(true);
-    const loadedNotes: Note[] = [];
-
+    
     try {
-      for await (const entry of (dirHandle as any).values()) {
-        if (entry.kind === 'file' && entry.name.endsWith('.md')) {
-          const file = await entry.getFile();
-          const content = await file.text();
-          
-          loadedNotes.push({
-            name: entry.name,
-            handle: entry,
-            content,
-            lastModified: file.lastModified,
-          });
-        }
-      }
-
+      const loadedNotes = await loadNotesRecursively(dirHandle);
+      
       // Sort by last modified
       loadedNotes.sort((a, b) => b.lastModified - a.lastModified);
       setNotes(loadedNotes);
 
       // Load folder structure
       const structure = await loadFolderStructure(dirHandle);
+      
+      // Count notes for root
+      const totalNotes = loadedNotes.length;
+      structure.forEach(item => {
+        if (item.type === 'folder') {
+          const folderNotes = loadedNotes.filter(note => 
+            note.path.startsWith(item.path + '/')
+          ).length;
+          item.noteCount = folderNotes;
+        }
+      });
+      
       setFolderStructure(structure);
     } catch (error) {
       console.error('Error loading notes:', error);
@@ -189,6 +205,7 @@ export const useFileSystem = () => {
         handle,
         content,
         lastModified: Date.now(),
+        path: fileName,
       };
 
       setNotes(prev => [newNote, ...prev]);
