@@ -10,8 +10,12 @@ const Index = () => {
 
   return (
     <div className="app-container">
-      <Sidebar onOpenVault={fileSystem.selectDirectory} />
-      <NotesList 
+      <Sidebar 
+        onOpenVault={fileSystem.selectDirectory}
+        folderStructure={fileSystem.folderStructure}
+        vaultName={fileSystem.directoryHandle?.name}
+      />
+      <NotesList
         notes={fileSystem.notes}
         isLoading={fileSystem.isLoading}
         selectedNote={selectedNote}

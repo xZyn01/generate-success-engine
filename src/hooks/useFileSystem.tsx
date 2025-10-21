@@ -8,9 +8,19 @@ export interface Note {
   lastModified: number;
 }
 
+export interface FolderItem {
+  id: string;
+  name: string;
+  path: string;
+  type: 'file' | 'folder';
+  children?: FolderItem[];
+  noteCount?: number;
+}
+
 export const useFileSystem = () => {
   const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [folderStructure, setFolderStructure] = useState<FolderItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const selectDirectory = useCallback(async () => {
@@ -48,6 +58,55 @@ export const useFileSystem = () => {
     }
   }, []);
 
+  const loadFolderStructure = useCallback(async (
+    dirHandle: FileSystemDirectoryHandle,
+    path: string = ''
+  ): Promise<FolderItem[]> => {
+    const items: FolderItem[] = [];
+
+    for await (const entry of (dirHandle as any).values()) {
+      const itemPath = path ? `${path}/${entry.name}` : entry.name;
+      
+      if (entry.kind === 'directory') {
+        const subDirHandle = await dirHandle.getDirectoryHandle(entry.name);
+        const children = await loadFolderStructure(subDirHandle, itemPath);
+        const noteCount = countNotes(children);
+        
+        items.push({
+          id: itemPath,
+          name: entry.name,
+          path: itemPath,
+          type: 'folder',
+          children,
+          noteCount,
+        });
+      } else if (entry.kind === 'file' && entry.name.endsWith('.md')) {
+        items.push({
+          id: itemPath,
+          name: entry.name,
+          path: itemPath,
+          type: 'file',
+        });
+      }
+    }
+
+    return items.sort((a, b) => {
+      if (a.type === 'folder' && b.type === 'file') return -1;
+      if (a.type === 'file' && b.type === 'folder') return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, []);
+
+  const countNotes = (items: FolderItem[]): number => {
+    return items.reduce((count, item) => {
+      if (item.type === 'file') return count + 1;
+      if (item.type === 'folder' && item.children) {
+        return count + countNotes(item.children);
+      }
+      return count;
+    }, 0);
+  };
+
   const loadNotes = useCallback(async (dirHandle: FileSystemDirectoryHandle) => {
     setIsLoading(true);
     const loadedNotes: Note[] = [];
@@ -70,6 +129,10 @@ export const useFileSystem = () => {
       // Sort by last modified
       loadedNotes.sort((a, b) => b.lastModified - a.lastModified);
       setNotes(loadedNotes);
+
+      // Load folder structure
+      const structure = await loadFolderStructure(dirHandle);
+      setFolderStructure(structure);
     } catch (error) {
       console.error('Error loading notes:', error);
       toast({
@@ -80,7 +143,7 @@ export const useFileSystem = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [loadFolderStructure]);
 
   const saveNote = useCallback(async (handle: FileSystemFileHandle, content: string) => {
     try {
@@ -155,6 +218,7 @@ export const useFileSystem = () => {
   return {
     directoryHandle,
     notes,
+    folderStructure,
     isLoading,
     selectDirectory,
     saveNote,
